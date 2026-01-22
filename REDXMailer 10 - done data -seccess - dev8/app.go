@@ -257,12 +257,6 @@ func NewApp() *App {
 		"universe_domain":             "googleapis.com",
 	}
 	
-	// Load SMTP settings
-	app.loadSMTPSettings()
-	
-	// Load tasks on startup
-	app.loadTasks()
-	
 	// Initialize Google Sheets service
 	go func() {
 		if err := app.initSheetsService(); err != nil {
@@ -271,7 +265,6 @@ func NewApp() *App {
 	}()
 	
 	go app.handleNotifications()
-	go app.setupCleanupOnExit()
 	go app.testSMTPConnection()
 	go app.initSupabaseDayCounter()
 	go app.startAutoLogoutTimer()
@@ -396,9 +389,6 @@ func (a *App) CreateTask() map[string]interface{} {
 	
 	a.tasks[taskID] = task
 	a.tasksMutex.Unlock()
-	
-	// Save to disk
-	a.saveTask(task)
 	
 	a.notificationsChan <- map[string]interface{}{
 		"type":    "info",
@@ -531,9 +521,6 @@ func (a *App) UpdateTask(taskID string, updates map[string]interface{}) map[stri
 			task.UseRandomDelay = randomDelay
 		}
 	}
-	
-	// Save to disk
-	a.saveTask(task)
 	
 	return map[string]interface{}{
 		"success": true,
@@ -756,9 +743,6 @@ func (a *App) processEmailsSMTP(taskID string) {
 		}
 		
 		task.IsPaused = false
-		
-		// Save task with updated sent count
-		a.saveTask(task)
 	})
 	
 	// Send notification
@@ -1170,35 +1154,12 @@ func escapeSQL(input string) string {
 }
 
 // ==================================================
-// SMTP FUNCTIONS
+// SMTP FUNCTIONS - MODIFIED: NO DISK STORAGE
 // ==================================================
 
 func (a *App) loadSMTPSettings() {
-	os.MkdirAll("smtp", 0755)
-	
-	settingsFile := "smtp/settings.json"
-	if data, err := os.ReadFile(settingsFile); err == nil {
-		json.Unmarshal(data, &a.smtpSettings)
-		
-		// Remove duplicates when loading
-		a.removeDuplicateSMTPAccounts()
-	}
-	
-	// Load available SMTP
-	availableFile := "smtp/available.txt"
-	if data, err := os.ReadFile(availableFile); err == nil {
-		a.parseSMTPFile(data, false)
-		// Remove duplicates after parsing
-		a.removeDuplicateSMTPAccounts()
-	}
-	
-	// Load wrong SMTP
-	wrongFile := "smtp/wrong.txt"
-	if data, err := os.ReadFile(wrongFile); err == nil {
-		a.parseSMTPFile(data, true)
-		// Remove duplicates after parsing
-		a.removeDuplicateSMTPAccounts()
-	}
+	// REMOVED: No loading from disk - everything starts fresh
+	// SMTP settings will be stored only in memory
 }
 
 func (a *App) removeDuplicateSMTPAccounts() {
@@ -1228,33 +1189,16 @@ func (a *App) removeDuplicateSMTPAccounts() {
 	for _, acc := range wrongMap {
 		a.smtpSettings.WrongSMTP = append(a.smtpSettings.WrongSMTP, acc)
 	}
-	
-	// Save after removing duplicates
-	a.saveSMTPSettings()
 }
 
 func (a *App) saveSMTPSettings() {
-	os.MkdirAll("smtp", 0755)
-	
-	// Save settings
-	settingsFile := "smtp/settings.json"
-	data, _ := json.MarshalIndent(a.smtpSettings, "", "  ")
-	os.WriteFile(settingsFile, data, 0644)
-	
-	// Save available SMTP - ONLY EMAIL AND PASSWORD (ORIGINAL FORMAT)
-	a.saveSMTPAccounts("smtp/available.txt", a.smtpSettings.AvailableSMTP)
-	
-	// Save wrong SMTP - ONLY EMAIL AND PASSWORD (ORIGINAL FORMAT)
-	a.saveSMTPAccounts("smtp/wrong.txt", a.smtpSettings.WrongSMTP)
+	// REMOVED: No saving to disk - everything stays in memory only
+	// Do nothing when trying to save SMTP settings
 }
 
 func (a *App) saveSMTPAccounts(filename string, accounts []SMTPAccount) {
-	var lines []string
-	for _, acc := range accounts {
-		// Save only email and password in original format
-		lines = append(lines, fmt.Sprintf("%s\t%s", acc.Email, acc.Password))
-	}
-	os.WriteFile(filename, []byte(strings.Join(lines, "\n")), 0644)
+	// REMOVED: No saving to disk - everything stays in memory only
+	// Do nothing when trying to save SMTP accounts
 }
 
 func (a *App) parseSMTPFile(data []byte, isWrong bool) {
@@ -1303,9 +1247,6 @@ func (a *App) ClearSMTPAccounts(accountType string) map[string]interface{} {
 			"message": fmt.Sprintf("Invalid account type: %s", accountType),
 		}
 	}
-	
-	// Save changes
-	a.saveSMTPSettings()
 	
 	return map[string]interface{}{
 		"success": true,
@@ -1587,9 +1528,6 @@ func (a *App) moveToWrongSMTP(account *SMTPAccount) {
 	if !exists {
 		a.smtpSettings.WrongSMTP = append(a.smtpSettings.WrongSMTP, *account)
 	}
-	
-	// Save changes
-	a.saveSMTPSettings()
 }
 
 func (a *App) GetSMTPSettings() map[string]interface{} {
@@ -1606,9 +1544,6 @@ func (a *App) UpdateSMTPServer(server SMTPServer) map[string]interface{} {
 	a.smtpMutex.Lock()
 	a.smtpSettings.CurrentServer = server
 	a.smtpMutex.Unlock()
-	
-	// Save settings
-	a.saveSMTPSettings()
 	
 	// Test connection
 	go a.testSMTPConnection()
@@ -1678,9 +1613,6 @@ func (a *App) UploadSMTPFile(base64Data string) map[string]interface{} {
 		}
 	}
 	
-	// Save settings
-	a.saveSMTPSettings()
-	
 	// Test connection with new accounts
 	go a.testSMTPConnection()
 	
@@ -1723,9 +1655,6 @@ func (a *App) AddManualSMTP(email, password string) map[string]interface{} {
 	}
 	
 	a.smtpSettings.AvailableSMTP = append(a.smtpSettings.AvailableSMTP, account)
-	
-	// Save settings
-	a.saveSMTPSettings()
 	
 	// Test connection
 	go a.testSMTPConnection()
@@ -2645,9 +2574,6 @@ func (a *App) StartSending(taskID string) map[string]interface{} {
 	task.StartTime = time.Now()
 	task.CompletionTime = nil
 	
-	// Save to disk
-	a.saveTask(task)
-	
 	// Start sending in goroutine
 	go a.processEmailsSMTP(taskID)
 	
@@ -2741,7 +2667,7 @@ func (a *App) UploadFile(base64Data, filename string) (string, error) {
 }
 
 // ==================================================
-// TASK MANAGEMENT FUNCTIONS
+// TASK MANAGEMENT FUNCTIONS - MODIFIED: NO DISK STORAGE
 // ==================================================
 
 func (a *App) DeleteTask(taskID string) map[string]interface{} {
@@ -2764,10 +2690,6 @@ func (a *App) DeleteTask(taskID string) map[string]interface{} {
 	if task.Status == "running" {
 		task.StopRequested = true
 	}
-	
-	// Delete task file
-	taskFile := fmt.Sprintf("tasks/%s.json", taskID)
-	os.Remove(taskFile)
 	
 	delete(a.tasks, taskID)
 	
@@ -2806,9 +2728,6 @@ func (a *App) PauseTask(taskID string) map[string]interface{} {
 	}
 	task.Progress.StatusText = "Paused"
 	
-	// Save to disk
-	a.saveTask(task)
-	
 	a.notificationsChan <- map[string]interface{}{
 		"type":    "info",
 		"message": fmt.Sprintf("Task paused: %s", task.Name),
@@ -2845,9 +2764,6 @@ func (a *App) ResumeTask(taskID string) map[string]interface{} {
 	}
 	task.Progress.StatusText = "Resuming..."
 	
-	// Save to disk
-	a.saveTask(task)
-	
 	// Start sending from where it paused
 	go a.continueSending(taskID)
 	
@@ -2880,9 +2796,6 @@ func (a *App) StopTask(taskID string) map[string]interface{} {
 		task.Progress = &TaskProgress{}
 	}
 	task.Progress.StatusText = "Stopped by user"
-	
-	// Save to disk
-	a.saveTask(task)
 	
 	a.notificationsChan <- map[string]interface{}{
 		"type":    "info",
@@ -2934,10 +2847,6 @@ func (a *App) ClearCompletedTasks() map[string]interface{} {
 	
 	for id, task := range a.tasks {
 		if task.Status == "completed" || task.Status == "stopped" {
-			// Delete task file
-			taskFile := fmt.Sprintf("tasks/%s.json", id)
-			os.Remove(taskFile)
-			
 			delete(a.tasks, id)
 		}
 	}
@@ -2970,49 +2879,13 @@ func (a *App) getPortFromTaskID(taskID string) int {
 }
 
 func (a *App) saveTask(task *TaskInfo) error {
-	os.MkdirAll("tasks", 0755)
-	
-	data, err := json.MarshalIndent(task, "", "  ")
-	if err != nil {
-		return err
-	}
-	
-	taskFile := fmt.Sprintf("tasks/%s.json", task.ID)
-	return os.WriteFile(taskFile, data, 0644)
+	// REMOVED: No saving to disk - everything stays in memory only
+	return nil
 }
 
 func (a *App) loadTasks() {
-	os.MkdirAll("tasks", 0755)
-	
-	files, err := os.ReadDir("tasks")
-	if err != nil {
-		return
-	}
-	
-	for _, file := range files {
-		if strings.HasSuffix(file.Name(), ".json") {
-			data, err := os.ReadFile(filepath.Join("tasks", file.Name()))
-			if err != nil {
-				continue
-			}
-			
-			var task TaskInfo
-			if json.Unmarshal(data, &task) == nil {
-				if strings.HasPrefix(task.ID, "task-") {
-					parts := strings.Split(task.ID, "-")
-					if len(parts) > 1 {
-						if num, err := strconv.Atoi(parts[1]); err == nil {
-							if num > a.taskCounter {
-								a.taskCounter = num
-							}
-						}
-					}
-				}
-				
-				a.tasks[task.ID] = &task
-			}
-		}
-	}
+	// REMOVED: No loading from disk - everything starts fresh
+	// Tasks will be stored only in memory during the current session
 }
 
 func (a *App) handleNotifications() {
@@ -3035,8 +2908,6 @@ func (a *App) updateTaskStatus(taskID string, updateFunc func(*TaskInfo)) {
 	a.tasksMutex.Lock()
 	if task, exists := a.tasks[taskID]; exists {
 		updateFunc(task)
-		// Save to disk
-		a.saveTask(task)
 	}
 	a.tasksMutex.Unlock()
 }
@@ -3052,29 +2923,6 @@ func (a *App) getDelayForTask(task *TaskInfo, emailIndex int) time.Duration {
 		// Fixed delay (can be 0 for fast sending)
 		return time.Duration(task.DelaySeconds * float64(time.Second))
 	}
-}
-
-// ==================================================
-// CLEANUP ON EXIT
-// ==================================================
-
-func (a *App) setupCleanupOnExit() {
-	// Handle application exit
-	go func() {
-		// Update sent count on application close
-		a.userMutex.RLock()
-		currentUser := a.currentUser
-		a.userMutex.RUnlock()
-		
-		if currentUser != nil && a.sheetsService != nil {
-			a.updateSheetSentCount(currentUser.Username, currentUser.SentToday)
-			// Remove current IP from logged IPs
-			a.removeCurrentIPFromLoggedIPs()
-		}
-		
-		// Save SMTP settings
-		a.saveSMTPSettings()
-	}()
 }
 
 // ==================================================
