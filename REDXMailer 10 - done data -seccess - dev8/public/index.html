@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REDX Gmail Desktop Mailer</title>
+    <style>
+        :root {
+            --primary: #007aff;
+            --success: #34c759;
+            --danger: #ff3b30;
+            --warning: #ff9500;
+            --running: #007aff;
+            --paused: #ff9500;
+            --stopped: #8e8e93;
+            --error: #ff3b30;
+            --completed: #34c759;
+            --bg-primary: #f5f5f7;
+            --bg-secondary: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --border: #d1d1d6;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            --radius: 14px;
+            --glass: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --login-bg: #1a1a1a;
+            --login-red: #ff0000;
+            --login-dark: #2d2d2d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===== WINDOW CONTROLS ===== */
+        .window-controls {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 1001;
+        }
+
+        .window-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: var(--text-primary);
+        }
+
+        .window-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .window-btn.minimize {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ff9800;
+        }
+
+        .window-btn.maximize {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+
+        .window-btn.restore {
+            background: rgba(33, 150, 243, 0.2);
+            color: #2196f3;
+        }
+
+        .window-btn.close {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+
+        .window-btn.minimize:hover {
+            background: rgba(255, 193, 7, 0.3);
+        }
+
+        .window-btn.maximize:hover {
+            background: rgba(76, 175, 80, 0.3);
+        }
+
+        .window-btn.restore:hover {
+            background: rgba(33, 150, 243, 0.3);
+        }
+
+        .window-btn.close:hover {
+            background: rgba(244, 67, 54, 0.3);
+        }
+
+        /* ===== LOGIN SCREEN ===== */
+        #loginScreen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: var(--login-bg);
+            padding: 20px;
+            position: relative;
+            z-index: 1000;
+        }
+
+        .login-container {
+            background: var(--login-dark);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-logo {
+            width: 80px;
+            height: 80px;
+            background: var(--login-red);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 36px;
+            color: white;
+        }
+
+        .login-title {
+            color: var(--login-red);
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .login-subtitle {
+            color: #bdc3c7;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .login-input {
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: var(--login-red);
+            background: rgba(255, 0, 0, 0.1);
+        }
+
+        .login-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .login-btn {
+            background: var(--login-red);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            background: #cc0000;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 0, 0, 0.2);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #95a5a6;
+            font-size: 12px;
+        }
+
+        .create-user-link {
+            color: #3498db;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .create-user-link:hover {
+            text-decoration: underline;
+        }
+
+        .login-status {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 12px;
+            min-height: 20px;
+        }
+
+        .login-status.success {
+            color: #2ecc71;
+        }
+
+        .login-status.error {
+            color: #e74c3c;
+        }
+
+        .login-status.info {
+            color: #f39c12;
+        }
+
+        /* ===== MAIN APP ===== */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 16px;
+            gap: 16px;
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            flex-shrink: 0;
+        }
+
+        .app-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--glass);
+            padding: 8px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .user-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .username {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .user-stats {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 8px;
+        }
+
+        .header-tabs {
+            display: flex;
+            gap: 8px;
+            margin-left: 20px;
+        }
+
+        .header-tab {
+            padding: 8px 16px;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .header-tab.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .header-tab:hover:not(.active) {
+            background: white;
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 59, 48, 0.1);
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex: 1;
+            gap: 16px;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* Tasks Panel */
+        .tasks-panel {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .tasks-header {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .new-task-top {
+            margin-bottom: 10px;
+        }
+
+        .task-list-container {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .task-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 8px;
+        }
+
+        .task-tab {
+            padding: 12px;
+            background: var(--glass);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .task-tab.active {
+            border-color: var(--primary);
+            background: rgba(0, 122, 255, 0.1);
+        }
+
+        .task-tab.running {
+            border-left: 4px solid var(--running);
+            animation: pulse 2s infinite;
+        }
+
+        .task-tab.completed {
+            border-left: 4px solid var(--completed);
+        }
+
+        .task-tab.error {
+            border-left: 4px solid var(--error);
+            animation: blink 1s infinite;
+        }
+
+        .task-tab.paused {
+            border-left: 4px solid var(--paused);
+        }
+
+        .task-tab.stopped {
+            border-left: 4px solid var(--stopped);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .task-tab-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .task-name {
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .task-status-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-running { background: var(--running); color: white; }
+        .badge-completed { background: var(--completed); color: white; }
+        .badge-error { background: var(--error); color: white; }
+        .badge-paused { background: var(--paused); color: white; }
+        .badge-stopped { background: var(--stopped); color: white; }
+        .badge-ready { background: var(--text-secondary); color: white; }
+
+        .task-progress-ribbon {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .task-progress-counts {
+            display: flex;
+            gap: 8px;
+        }
+
+        .task-controls {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .task-tab:hover .task-controls {
+            opacity: 1;
+        }
+
+        .task-control-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            border: none;
+            background: var(--glass);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .task-control-btn:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Email Form */
+        .email-form-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .email-form-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 8px;
+            min-height: 0;
+        }
+
+        .email-form {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-height: min-content;
+        }
+
+        .form-section {
+            background: var(--glass);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .form-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-row.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        input, textarea, select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Email Content Section - UPDATED ORDER */
+        .email-content-section {
+            background: var(--glass);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        /* SMTP Configuration in Task Progress */
+        .smtp-config-inline {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            padding: 12px;
+            background: rgba(0, 122, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 122, 255, 0.1);
+        }
+
+        .smtp-stats-inline {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .smtp-stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .smtp-stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .smtp-stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .smtp-stat-item.wrong .smtp-stat-value {
+            color: var(--danger);
+        }
+
+        /* Failed Emails Section in Task Progress */
+        .failed-emails-section {
+            background: rgba(255, 59, 48, 0.05);
+            border: 1px solid rgba(255, 59, 48, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .failed-emails-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+
+        .failed-email-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255, 59, 48, 0.2);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .failed-email-item:hover {
+            background: rgba(255, 59, 48, 0.05);
+        }
+
+        .failed-email-details {
+            flex: 1;
+        }
+
+        .failed-email-address {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .failed-email-error {
+            font-size: 11px;
+            color: var(--danger);
+        }
+
+        .failed-email-time {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-left: 10px;
+            white-space: nowrap;
+        }
+
+        .error-details-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .error-details-content {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow);
+        }
+
+        .error-details-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        /* SMTP Configuration Tab */
+        .smtp-container {
+            flex: 1;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .smtp-server-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .server-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            background: var(--glass);
+        }
+
+        .status-connected {
+            background: rgba(52, 199, 89, 0.1);
+            color: var(--success);
+        }
+
+        .status-disconnected {
+            background: rgba(255, 59, 48, 0.1);
+            color: var(--danger);
+        }
+
+        .smtp-accounts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .smtp-account-list {
+            background: var(--glass);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .account-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .account-email {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .account-status {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .status-active {
+            background: var(--success);
+            color: white;
+        }
+
+        .status-inactive {
+            background: var(--danger);
+            color: white;
+        }
+
+        .smtp-upload-section {
+            background: rgba(0, 122, 255, 0.05);
+            border: 2px dashed rgba(0, 122, 255, 0.3);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .manual-smtp-form {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            margin-top: 20px;
+        }
+
+        /* User Details Tab */
+        .user-details-container {
+            flex: 1;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .user-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .user-detail-card {
+            background: var(--glass);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .user-detail-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .user-detail-value {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .limit-progress {
+            margin-top: 20px;
+        }
+
+        .progress-bar-container {
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .limit-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Tags Tab */
+        .tags-container {
+            flex: 1;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .tags-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .tag-group {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .tag-group-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid rgba(0, 122, 255, 0.1);
+        }
+
+        .tag-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .tag-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(0, 122, 255, 0.05);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .tag-item:hover {
+            background: rgba(0, 122, 255, 0.1);
+            border-color: rgba(0, 122, 255, 0.2);
+            transform: translateX(4px);
+        }
+
+        .tag-code {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            background: rgba(0, 122, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: var(--primary);
+            font-weight: 500;
+            min-width: 120px;
+        }
+
+        .tag-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+            flex: 1;
+        }
+
+        .tag-copy {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .tag-copy:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Attachment Name Section */
+        .attachment-name-section {
+            background: rgba(52, 199, 89, 0.05);
+            border: 2px dashed rgba(52, 199, 89, 0.3);
+        }
+
+        .attachment-options {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .attachment-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .option-radio {
+            margin-top: 4px;
+        }
+
+        .option-content {
+            flex: 1;
+        }
+
+        .option-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .option-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .option-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .option-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* File Upload */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-upload {
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-upload:hover {
+            border-color: var(--primary);
+            background: rgba(0, 122, 255, 0.05);
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        /* Time Delay Settings */
+        .delay-options {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .delay-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .delay-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .delay-input {
+            width: 120px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .delay-note {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* SMTP Rotation Checkbox */
+        .smtp-rotation-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: rgba(0, 122, 255, 0.05);
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056cc;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--glass);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #28a745;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        /* Task Progress Panel */
+        .task-progress-panel {
+            width: 320px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+
+        .progress-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.3s ease;
+        }
+
+        .progress-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-box {
+            padding: 12px;
+            background: var(--glass);
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Form Actions */
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            background: var(--bg-secondary);
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        /* Notifications */
+        .notifications {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 320px;
+        }
+
+        .notification {
+            padding: 16px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 14px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+            transform-origin: top right;
+        }
+
+        .notification-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: white;
+        }
+
+        .notification.success .notification-icon {
+            background: var(--success);
+        }
+
+        .notification.error .notification-icon {
+            background: var(--danger);
+        }
+
+        .notification.info .notification-icon {
+            background: var(--primary);
+        }
+
+        .notification.warning .notification-icon {
+            background: var(--warning);
+        }
+
+        .notification-content {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100px) scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
+        }
+
+        /* Scroll to top button */
+        .scroll-to-top {
+            position: fixed;
+            bottom: 80px;
+            right: 30px;
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .scroll-to-top.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .scroll-to-top:hover {
+            background: #0056cc;
+            transform: translateY(-2px);
+        }
+
+        /* Recipients quick scroll helper */
+        .recipients-scroll-helper {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            background: var(--primary);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .recipients-scroll-helper:hover {
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .tasks-panel, .task-progress-panel {
+                width: 100%;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .smtp-accounts-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .user-details-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--glass);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Utility */
+        .hidden {
+            display: none !important;
+        }
+
+        .auto-logout-warning {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--warning);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: pulse 2s infinite;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Window Controls (Always Visible) -->
+    <div class="window-controls">
+        <button id="minimizeBtn" class="window-btn minimize" title="Minimize">━</button>
+        <button id="maximizeBtn" class="window-btn maximize" title="Maximize">□</button>
+        <button id="restoreBtn" class="window-btn restore" title="Restore" style="display: none;">❐</button>
+        <button id="closeBtn" class="window-btn close" title="Close">✕</button>
+    </div>
+
+    <!-- Error Details Modal -->
+    <div id="errorDetailsModal" class="error-details-modal hidden">
+        <div class="error-details-content">
+            <button class="error-details-close" id="errorDetailsClose">✕</button>
+            <div class="form-title">❌ Error Details</div>
+            <div id="errorDetailsContent">
+                <!-- Error details will be shown here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="hidden">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="login-logo">✉️</div>
+                <h1 class="login-title">RED-X MAILER 10.1</h1>
+                <p class="login-subtitle">Premium Email Management System</p>
+            </div>
+            
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="loginUsername">Username</label>
+                    <input type="text" id="loginUsername" class="login-input" placeholder="Enter your username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" class="login-input" placeholder="Enter your password" required>
+                </div>
+                
+                <div id="loginStatus" class="login-status"></div>
+                
+                <button type="submit" id="loginBtn" class="login-btn">
+                    🔓 LOGIN TO RED-X MAILER
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>Don't have an account? <a href="https://redxmailer.github.io/REDX-USER/" target="_blank" class="create-user-link">Create User</a></p>
+                <p style="margin-top: 10px; font-size: 11px;">System IP: <span id="systemIP">Detecting...</span> | Date: <span id="currentDate">Loading...</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto Logout Warning -->
+    <div id="autoLogoutWarning" class="auto-logout-warning hidden">
+        <span>⚠️ Session will expire in</span>
+        <span id="logoutTimer">60:00</span>
+    </div>
+
+    <!-- Main App (Hidden by default) -->
+    <div id="mainApp" class="app-container hidden">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="app-title">📧 REDX Gmail Mailer</h1>
+            <div class="header-controls">
+                <div class="header-tabs">
+                    <button id="emailTabBtn" class="header-tab active">📧 Email Sender</button>
+                    <button id="smtpTabBtn" class="header-tab">🔧 SMTP Config</button>
+                    <button id="userDetailsTabBtn" class="header-tab">👤 User Details</button>
+                    <button id="tagsTabBtn" class="header-tab">🏷️ Tags</button>
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <div class="username" id="currentUsername">Username</div>
+                        <div class="user-stats">
+                            <span id="userLimit">Limit: 0</span>
+                            <span id="userSent">Sent: 0</span>
+                        </div>
+                    </div>
+                    <button id="logoutBtn" class="logout-btn" title="Logout">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Tasks Panel -->
+            <div class="tasks-panel">
+                <div class="tasks-header">
+                    <span>🔄 Running Tasks</span>
+                    <button id="clearTasksBtn" class="btn btn-secondary btn-small">
+                        Clear Completed
+                    </button>
+                </div>
+                <div class="new-task-top">
+                    <button id="newTaskBtn" class="btn btn-primary" style="width: 100%;">
+                        <span>➕ New Task</span>
+                    </button>
+                </div>
+                <div class="task-list-container">
+                    <div id="taskList" class="task-list">
+                        <!-- Tasks will be added here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Form Container (Default Tab) -->
+            <div id="emailFormContainer" class="email-form-container">
+                <div class="email-form-scroll" id="emailFormScroll">
+                    <!-- Email Content Section (UPDATED ORDER) -->
+                    <div class="email-content-section">
+                        <div class="form-title">📝 Email Content</div>
+                        <div class="form-row full-width">
+                            <label>Subject (Optional) - Use tags like {invoice_no}, {date}, etc.</label>
+                            <input type="text" id="subject" placeholder="Invoice {invoice_no} - {date}">
+                        </div>
+                        <div class="form-row full-width">
+                            <label>Sender Name (Optional)</label>
+                            <input type="text" id="senderName" placeholder="Your Name">
+                        </div>
+                        <div class="form-row full-width">
+                            <label>Email Body - HTML Supported (Optional)</label>
+                            <textarea id="body" placeholder="<p>Dear {recipient_name},</p><p>Your invoice {invoice_no} for {date} is attached.</p>"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Attachments Section -->
+                    <div class="form-section">
+                        <div class="form-title">📎 Attachments</div>
+
+                        <!-- File Upload -->
+                        <div class="form-row full-width">
+                            <label>Raw Attachments</label>
+                            <div class="file-upload" id="rawAttachmentsDrop">
+                                <div>📎 Drop files here or click to upload</div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                                    PDF, JPG, PNG, WebP, XLSX, DOCX, DOTX, HEIC, etc.
+                                </div>
+                            </div>
+                            <input type="file" id="rawAttachmentsInput" multiple class="hidden">
+                            <div class="file-list" id="rawAttachmentsList"></div>
+                        </div>
+
+                        <!-- Attachment Name Options -->
+                        <div class="form-section attachment-name-section" style="margin-top: 20px;">
+                            <div class="form-title">📝 Attachment Name Options</div>
+                            <div class="attachment-options">
+                                <div class="attachment-option">
+                                    <input type="radio" id="useOriginalName" name="attachmentName" checked class="option-radio">
+                                    <div class="option-content">
+                                        <div class="option-title">Use Original File Names</div>
+                                        <div class="option-desc">Keep the original names of uploaded files</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="attachment-option">
+                                    <input type="radio" id="useCustomName" name="attachmentName" class="option-radio">
+                                    <div class="option-content">
+                                        <div class="option-title">Custom Attachment Name</div>
+                                        <div class="option-desc">Use custom name for all attachments (supports tags)</div>
+                                        <input type="text" id="customAttachment" class="option-input" placeholder="Invoice_{invoice_no}_{date}.pdf" disabled>
+                                    </div>
+                                </div>
+                                
+                                <div class="attachment-option">
+                                    <input type="radio" id="useTagsForName" name="attachmentName" class="option-radio">
+                                    <div class="option-content">
+                                        <div class="option-title">Use Tags for Attachment Name</div>
+                                        <div class="option-desc">Generate names using tags (invoice_no, uuid, etc.)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Time Delay Settings Section -->
+                    <div class="form-section">
+                        <div class="form-title">⏱️ Time Delay Settings</div>
+                        <div class="delay-options">
+                            <div class="delay-option">
+                                <input type="checkbox" id="useRandomDelay">
+                                <div>
+                                    <div style="font-weight: 500; margin-bottom: 4px;">Use Random Time Delay</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Random delay between 1-5 seconds for each email</div>
+                                </div>
+                            </div>
+                            
+                            <div class="delay-option" id="fixedDelayOption">
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 500; margin-bottom: 4px;">Fixed Delay Between Emails</div>
+                                    <div class="delay-input-group">
+                                        <input type="number" id="delaySeconds" min="0" max="60" step="0.5" value="1" class="delay-input">
+                                        <span>seconds (Enter 0 for fast sending)</span>
+                                    </div>
+                                    <div class="delay-note">
+                                        Enter 0 for fast speed (no delay), 0.5 for half-second increments
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recipients Section -->
+                    <div class="form-section" style="position: relative;">
+                        <div class="form-title">📨 Recipients</div>
+                        <div class="form-row full-width">
+                            <label>Recipients (one email per line)</label>
+                            <textarea id="recipients" placeholder="recipient1@gmail.com&#10;recipient2@gmail.com" style="min-height: 150px;"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button id="startBtn" class="btn btn-success">
+                        <span>🚀 Start Sending</span>
+                    </button>
+                    <button id="pauseBtn" class="btn btn-warning" style="display: none;">
+                        <span>⏸️ Pause</span>
+                    </button>
+                    <button id="resumeBtn" class="btn btn-success" style="display: none;">
+                        <span>▶️ Resume</span>
+                    </button>
+                    <button id="stopBtn" class="btn btn-danger" style="display: none;">
+                        <span>🛑 Stop</span>
+                    </button>
+                    <button id="saveBtn" class="btn btn-secondary">
+                        <span>💾 Save Changes</span>
+                    </button>
+                    <button id="deleteBtn" class="btn btn-danger">
+                        <span>🗑️ Delete Task</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Task Progress Panel -->
+            <div class="task-progress-panel">
+                <div class="form-title">📊 Task Progress</div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div id="progressText" style="font-size: 14px;">Select a task to view progress</div>
+                </div>
+                
+                <div class="progress-stats">
+                    <div class="stat-box">
+                        <div id="totalCount" class="stat-value">0</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat-box">
+                        <div id="sentCount" class="stat-value">0</div>
+                        <div class="stat-label">Sent</div>
+                    </div>
+                    <div class="stat-box">
+                        <div id="failedCount" class="stat-value">0</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat-box">
+                        <div id="progressPercent" class="stat-value">0%</div>
+                        <div class="stat-label">Progress</div>
+                    </div>
+                </div>
+
+                <!-- SMTP Configuration in Task Progress -->
+                <div class="form-title" style="margin-top: 16px;">🔧 SMTP Configuration</div>
+                <div class="smtp-config-inline">
+                    <div class="smtp-stats-inline">
+                        <div class="smtp-stat-item">
+                            <div class="smtp-stat-value" id="availableSMTPCount">0</div>
+                            <div class="smtp-stat-label">Available</div>
+                        </div>
+                        <div class="smtp-stat-item wrong">
+                            <div class="smtp-stat-value" id="wrongSMTPCount">0</div>
+                            <div class="smtp-stat-label">Wrong</div>
+                        </div>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="useSMTPRotation" checked>
+                        <label for="useSMTPRotation">Rotation</label>
+                    </div>
+                </div>
+
+                <!-- Failed Emails Section -->
+                <div id="failedEmailsSection" class="failed-emails-section hidden">
+                    <div class="form-title" style="color: var(--danger);">❌ Failed Emails (Click to view details)</div>
+                    <div id="failedEmailsList" class="failed-emails-list">
+                        <!-- Failed emails will be listed here -->
+                    </div>
+                </div>
+
+                <div class="form-title" style="margin-top: 16px;">📋 Recent Activity</div>
+                <div id="activityLog" style="font-size: 12px; color: var(--text-secondary); max-height: 200px; overflow-y: auto;">
+                    <!-- Activity log will appear here -->
+                </div>
+            </div>
+
+            <!-- SMTP Configuration Tab (Hidden by default) -->
+            <div id="smtpContainer" class="smtp-container" style="display: none;">
+                <div class="form-title">🔧 SMTP SERVER CONFIGURATION</div>
+                
+                <!-- SMTP Server Settings -->
+                <div class="smtp-server-section">
+                    <div class="form-grid">
+                        <div class="form-row">
+                            <label>SMTP Server</label>
+                            <select id="smtpServer">
+                                <option value="smtp.gmail.com">Gmail (smtp.gmail.com)</option>
+                                <option value="smtp.mail.me.com">iCloud (smtp.mail.me.com)</option>
+                                <option value="custom">Custom Server</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-row">
+                            <label>Port</label>
+                            <select id="smtpPort">
+                                <option value="587">587 (TLS)</option>
+                                <option value="465">465 (SSL)</option>
+                                <option value="25">25</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-row">
+                            <label>Security</label>
+                            <select id="smtpSecurity">
+                                <option value="TLS">TLS</option>
+                                <option value="SSL">SSL</option>
+                                <option value="STARTTLS">STARTTLS</option>
+                                <option value="None">None</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-row">
+                            <label>Domain</label>
+                            <input type="text" id="smtpDomain" value="gmail.com">
+                        </div>
+                    </div>
+                    
+                    <div class="server-status" id="smtpStatus">
+                        <span>⚪</span>
+                        <span>Connection Status: Not tested</span>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button id="testSMTPConnectionBtn" class="btn btn-primary btn-small">
+                            🔌 Test Connection
+                        </button>
+                        <button id="saveSMTPSettingsBtn" class="btn btn-success btn-small">
+                            💾 Save Settings
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- SMTP Accounts Management -->
+                <div class="form-title" style="margin-top: 30px;">📧 SMTP ACCOUNTS MANAGEMENT</div>
+                
+                <div class="smtp-accounts-section">
+                    <!-- Available SMTP -->
+                    <div class="smtp-account-list">
+                        <div class="form-title" style="font-size: 14px; margin-bottom: 12px;">✅ AVAILABLE SMTP</div>
+                        <div id="availableSMTPList">
+                            <!-- Available accounts will be listed here -->
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 12px;">
+                            <button id="downloadAvailableBtn" class="btn btn-secondary btn-small">
+                                📥 Download Report
+                            </button>
+                            <button id="clearAvailableBtn" class="btn btn-danger btn-small">
+                                🗑️ Clear All
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Wrong SMTP -->
+                    <div class="smtp-account-list">
+                        <div class="form-title" style="font-size: 14px; margin-bottom: 12px;">❌ WRONG SMTP</div>
+                        <div id="wrongSMTPList">
+                            <!-- Wrong accounts will be listed here -->
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 12px;">
+                            <button id="downloadWrongBtn" class="btn btn-secondary btn-small">
+                                📥 Download Report
+                            </button>
+                            <button id="clearWrongBtn" class="btn btn-danger btn-small">
+                                🗑️ Clear All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- SMTP Upload Section -->
+                <div class="smtp-upload-section">
+                    <div class="form-title" style="margin-bottom: 16px;">📤 UPLOAD SMTP ACCOUNTS (.txt FILE)</div>
+                    
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">
+                        Format: email&nbsp;&nbsp;&nbsp;&nbsp;app_password (one per line)<br>
+                        Example: firkan695@gmail.com&nbsp;&nbsp;&nbsp;&nbsp;yttm xsgl nseb yrrv
+                    </div>
+                    
+                    <div class="file-upload" id="smtpFileDrop">
+                        <div>📁 Drop .txt file here or click to upload</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                            Each line: email [tab/space] password
+                        </div>
+                    </div>
+                    <input type="file" id="smtpFileInput" accept=".txt" class="hidden">
+                    
+                    <div class="checkbox-group" style="margin-top: 16px; justify-content: center;">
+                        <input type="checkbox" id="autoUploadSMTP">
+                        <label for="autoUploadSMTP">Auto-upload SMTP for all new tasks</label>
+                    </div>
+                </div>
+                
+                <!-- Manual SMTP Addition -->
+                <div class="manual-smtp-form">
+                    <div class="form-title" style="margin-bottom: 16px;">➕ ADD SMTP ACCOUNT MANUALLY</div>
+                    
+                    <div class="form-grid">
+                        <div class="form-row">
+                            <label>Email Address</label>
+                            <input type="email" id="manualEmail" placeholder="user@gmail.com">
+                        </div>
+                        
+                        <div class="form-row">
+                            <label>App Password</label>
+                            <input type="password" id="manualPassword" placeholder="16-character app password">
+                        </div>
+                    </div>
+                    
+                    <button id="addManualSMTPBtn" class="btn btn-primary" style="margin-top: 16px;">
+                        ➕ Add SMTP Account
+                    </button>
+                </div>
+            </div>
+
+            <!-- User Details Tab (Hidden by default) -->
+            <div id="userDetailsContainer" class="user-details-container" style="display: none;">
+                <div class="form-title">👤 USER DETAILS</div>
+                
+                <div class="user-details-grid">
+                    <div class="user-detail-card">
+                        <div class="user-detail-label">Username</div>
+                        <div class="user-detail-value" id="detailUsername">Loading...</div>
+                    </div>
+                    
+                    <div class="user-detail-card">
+                        <div class="user-detail-label">User Type</div>
+                        <div class="user-detail-value" id="detailUserType">Loading...</div>
+                    </div>
+                    
+                    <div class="user-detail-card">
+                        <div class="user-detail-label">Current IP</div>
+                        <div class="user-detail-value" id="detailIP">Loading...</div>
+                    </div>
+                    
+                    <div class="user-detail-card">
+                        <div class="user-detail-label">Last Login Date</div>
+                        <div class="user-detail-value" id="detailLastLogin">Loading...</div>
+                    </div>
+                    
+                    <div class="user-detail-card">
+                        <div class="user-detail-label">Max Logins/Day</div>
+                        <div class="user-detail-value" id="detailMaxLogins">Loading...</div>
+                    </div>
+                    
+                    <div class="user-detail-card">
+                        <div class="user-detail-label">Logins Today</div>
+                        <div class="user-detail-value" id="detailLoginsToday">Loading...</div>
+                    </div>
+                    
+                    <div class="user-detail-card">
+                        <div class="user-detail-label">Logged IPs</div>
+                        <div class="user-detail-value" id="detailLoggedIPs">Loading...</div>
+                    </div>
+                    
+                    <div class="user-detail-card">
+                        <div class="user-detail-label">Expiry Date</div>
+                        <div class="user-detail-value" id="detailExpiryDate">Loading...</div>
+                    </div>
+                    
+                    <div class="user-detail-card">
+                        <div class="user-detail-label">Days Until Expiry</div>
+                        <div class="user-detail-value" id="detailDaysUntilExpiry">Loading...</div>
+                    </div>
+                    
+                    <div class="user-detail-card">
+                        <div class="user-detail-label">Last Reset Date</div>
+                        <div class="user-detail-value" id="detailLastResetDate">Loading...</div>
+                    </div>
+                </div>
+                
+                <div class="limit-progress">
+                    <div class="form-title" style="margin-top: 30px;">📊 DAILY SENDING LIMITS</div>
+                    
+                    <div class="progress-bar-container">
+                        <div id="detailProgressBar" class="progress-bar-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="limit-stats">
+                        <div>Usage: <span id="detailUsagePercent">0%</span></div>
+                        <div id="detailLimitStatus">Status: Active</div>
+                    </div>
+                    
+                    <div class="user-details-grid" style="margin-top: 20px;">
+                        <div class="user-detail-card">
+                            <div class="user-detail-label">Daily Limit</div>
+                            <div class="user-detail-value" id="detailDailyLimit">0</div>
+                        </div>
+                        
+                        <div class="user-detail-card">
+                            <div class="user-detail-label">Sent Today</div>
+                            <div class="user-detail-value" id="detailSentToday">0</div>
+                        </div>
+                        
+                        <div class="user-detail-card">
+                            <div class="user-detail-label">Remaining Today</div>
+                            <div class="user-detail-value" id="detailRemainingToday">0</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 30px; display: flex; gap: 12px;">
+                        <button id="refreshUserDetailsBtn" class="btn btn-primary">
+                            <span>🔄 Refresh Details</span>
+                        </button>
+                        <button id="testLimitBtn" class="btn btn-secondary">
+                            <span>🧪 Test Send Limit</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tags Tab (Hidden by default) -->
+            <div id="tagsContainer" class="tags-container" style="display: none;">
+                <div class="form-title">🏷️ AVAILABLE TAGS (Click to copy)</div>
+                <div id="tagsContent" class="tags-grid">
+                    <!-- Tags will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scroll to Top Button -->
+    <div id="scrollToTop" class="scroll-to-top hidden">
+        ↑
+    </div>
+
+    <!-- Notifications Container -->
+    <div id="notifications" class="notifications"></div>
+
+    <!-- JavaScript file -->
+    <script src="main.js"></script>
+</body>
+</html>
