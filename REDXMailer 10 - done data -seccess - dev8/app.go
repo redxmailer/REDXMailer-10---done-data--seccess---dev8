@@ -200,6 +200,7 @@ var SERVICE_ACCOUNT_INFO map[string]interface{}
 
 func NewApp() *App {
 	app := &App{
+		ctx:               context.Background(),
 		tasks:              make(map[string]*TaskInfo),
 		notifications:      make(chan Notification, 100),
 		notificationsChan:  make(chan map[string]interface{}, 100),
@@ -235,6 +236,11 @@ func NewApp() *App {
 	SUPABASE_SERVICE_KEY = os.Getenv("SUPABASE_SERVICE_KEY")
 	GOOGLE_PRIVATE_KEY = os.Getenv("GOOGLE_PRIVATE_KEY")
 	GOOGLE_CLIENT_EMAIL = os.Getenv("GOOGLE_CLIENT_EMAIL")
+	
+	// IMPORTANT: Fix the private key formatting by replacing escaped \n with actual newlines
+	if GOOGLE_PRIVATE_KEY != "" {
+		GOOGLE_PRIVATE_KEY = strings.ReplaceAll(GOOGLE_PRIVATE_KEY, "\\n", "\n")
+	}
 	
 	// Build service account info from environment variables
 	SERVICE_ACCOUNT_INFO = map[string]interface{}{
